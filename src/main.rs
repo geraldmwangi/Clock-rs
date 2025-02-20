@@ -2,8 +2,9 @@
 #![no_main]
 use core::u32;
 
+use cortex_m::singleton;
 use embedded_hal::digital::OutputPin;
-use rp2040_hal::dma::{DMAExt,Channel};
+use rp2040_hal::dma::{single_buffer, Channel, DMAExt};
 use rp_pico::hal::{
     clocks::init_clocks_and_plls,
     pac,
@@ -61,7 +62,7 @@ fn main() -> ! {
     );
 
     let installed = pio.install(&program.program).unwrap();
-    let (mut sm, _, mut tx) = rp2040_hal::pio::PIOBuilder::from_program(installed)
+    let (mut sm, _,  tx) = rp2040_hal::pio::PIOBuilder::from_program(installed)
         .out_pins(2, 6)
         .set_pins(11, 1)
         .clock_divisor_fixed_point(1, 0)
@@ -93,8 +94,11 @@ fn main() -> ! {
     let mut stb = pins.gpio12.into_push_pull_output();
     let mut oe = pins.gpio13.into_push_pull_output();
 
+    
     sm.start();
+        let fr_singleton=singleton!(: [u32; WIDTH]=framebuffer[0]).unwrap();
 
+    let tx_dma=single_buffer::Config::new(dma_chan,fr_singleton, tx);
     loop {
         for row in 0..ROWS {
             // rprintln!("Row {}",row);
@@ -107,7 +111,8 @@ fn main() -> ! {
 
             // Start DMA transfer
             // let _ = dma_chan.write_buffer(&framebuffer[row], &mut tx);
-            tx.write(u32::MAX);
+            
+           
             // tx.write(u32::MAX);
           
 
