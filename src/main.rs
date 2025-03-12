@@ -52,10 +52,17 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
-    let linedriver=linedriver::LineDriver::new(pins.gpio10.into_function(),pins.gpio16.into_function(),pins.gpio18.into_function(),pins.gpio20.into_function(),pins.gpio22.into_function(), pins.gpio13.into_function());
-    let r1:Pin<_, FunctionPio0, _>=pins.gpio2.into_function();
-    let clk:Pin<_, FunctionPio0, _>=pins.gpio11.into_function();
-    let latch:Pin<_, FunctionPio0, _>=pins.gpio12.into_function();
+    let linedriver = linedriver::LineDriver::new(
+        pins.gpio10.into_function(),
+        pins.gpio16.into_function(),
+        pins.gpio18.into_function(),
+        pins.gpio20.into_function(),
+        pins.gpio22.into_function(),
+        pins.gpio13.into_function(),
+    );
+    let r1: Pin<_, FunctionPio0, _> = pins.gpio2.into_function();
+    let clk: Pin<_, FunctionPio0, _> = pins.gpio11.into_function();
+    let latch: Pin<_, FunctionPio0, _> = pins.gpio12.into_function();
 
     let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
 
@@ -69,8 +76,12 @@ fn main() -> ! {
         .side_set_pin_base(clk.id().num) // LATCH on pin 4
         .clock_divisor_fixed_point(1, 0)
         .build(sm0);
-    sm.set_pindirs([(r1.id().num, PinDir::Output),(clk.id().num, PinDir::Output),(latch.id().num, PinDir::Output)]);
-    
+    sm.set_pindirs([
+        (r1.id().num, PinDir::Output),
+        (clk.id().num, PinDir::Output),
+        (latch.id().num, PinDir::Output),
+    ]);
+
     sm.start();
     loop {
         tx.write(u32::MAX);

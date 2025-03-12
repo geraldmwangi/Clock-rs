@@ -1,6 +1,6 @@
 use core::{array, iter::Map};
-use rp_pico::hal::{clocks::ClocksManager, gpio::Error, pac};
 use embedded_hal::digital::{OutputPin, StatefulOutputPin};
+use rp_pico::hal::{clocks::ClocksManager, gpio::Error, pac};
 use rp_pico::{
     hal::{
         gpio::{
@@ -9,7 +9,8 @@ use rp_pico::{
                 Gpio4, Gpio5, Gpio8, Gpio9,
             },
             FunctionSioOutput, Pin, PinId, PullDown,
-        }, timer, Sio
+        },
+        timer, Sio,
     },
     pac::Peripherals,
     Pins,
@@ -17,10 +18,10 @@ use rp_pico::{
 
 use rp_pico::hal::prelude::*;
 
-const Matrix_COLS: usize=64;
-const Matrix_ROWS: usize=32;
-const Matrix_ROWS_SHOW: usize=Matrix_ROWS/2;
-const Matrix_COLS_BYTE: usize=Matrix_COLS/8;
+const Matrix_COLS: usize = 64;
+const Matrix_ROWS: usize = 32;
+const Matrix_ROWS_SHOW: usize = Matrix_ROWS / 2;
+const Matrix_COLS_BYTE: usize = Matrix_COLS / 8;
 
 type R1 = Gpio2;
 type G1 = Gpio3;
@@ -92,17 +93,20 @@ pub struct DisplayDriver {
     pub stb: Pin<STB, FunctionSioOutput, PullDown>,
     pub oe: Pin<OE, FunctionSioOutput, PullDown>,
 
-    image_r: [[u8;Matrix_COLS];Matrix_ROWS],
-    image_g: [[u8;Matrix_COLS];Matrix_ROWS],
-    image_b:[[u8;Matrix_COLS];Matrix_ROWS]
+    image_r: [[u8; Matrix_COLS]; Matrix_ROWS],
+    image_g: [[u8; Matrix_COLS]; Matrix_ROWS],
+    image_b: [[u8; Matrix_COLS]; Matrix_ROWS],
 }
 
 impl DisplayDriver {
-    pub fn new(pins: Pins, core: pac::CorePeripherals,clocks: ClocksManager) -> Result<Self,Error> {
+    pub fn new(
+        pins: Pins,
+        core: pac::CorePeripherals,
+        clocks: ClocksManager,
+    ) -> Result<Self, Error> {
         let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
-        
-        let mut driver=Self {
+        let mut driver = Self {
             r1: pins.gpio2.into_push_pull_output(),
             g1: pins.gpio3.into_push_pull_output(),
             b1: pins.gpio4.into_push_pull_output(),
@@ -118,10 +122,9 @@ impl DisplayDriver {
             stb: pins.gpio12.into_push_pull_output(),
             oe: pins.gpio13.into_push_pull_output(),
             delay,
-            image_r: [[0;Matrix_COLS];Matrix_ROWS],
-            image_g: [[0;Matrix_COLS];Matrix_ROWS],
-            image_b: [[0;Matrix_COLS];Matrix_ROWS],
-          
+            image_r: [[0; Matrix_COLS]; Matrix_ROWS],
+            image_g: [[0; Matrix_COLS]; Matrix_ROWS],
+            image_b: [[0; Matrix_COLS]; Matrix_ROWS],
         };
         // driver.oe.set_high()?;
         // driver.stb.set_low()?;
@@ -185,167 +188,135 @@ impl DisplayDriver {
         //         driver.stb.set_low()?;
         //     }
         //     driver.clk.set_high()?;
-            
+
         //     driver.delay.delay_us(2);
-        //     driver.clk.set_low()?;           
+        //     driver.clk.set_low()?;
 
         // }
         // driver.fill_frame();
 
-
-
-
         Ok(driver)
     }
 
-    fn fill_frame(&mut self){
-        let c_y=Matrix_COLS/2;
-        let c_x=Matrix_ROWS/2;
-        let box_width=20;
-        
-        let tl_x=c_x-box_width/2;
-        let tl_y=c_y-box_width/2;
+    fn fill_frame(&mut self) {
+        let c_y = Matrix_COLS / 2;
+        let c_x = Matrix_ROWS / 2;
+        let box_width = 20;
 
-        for x in tl_x..(tl_x+box_width){
-            self.image_r[x][tl_y]=255;
-            self.image_r[x][tl_y+box_width]=255;
+        let tl_x = c_x - box_width / 2;
+        let tl_y = c_y - box_width / 2;
+
+        for x in tl_x..(tl_x + box_width) {
+            self.image_r[x][tl_y] = 255;
+            self.image_r[x][tl_y + box_width] = 255;
         }
 
-
-        for y in tl_y..(tl_y+box_width){
-            self.image_r[tl_x][y]=255;
-            self.image_r[tl_x+box_width][y]=255;
+        for y in tl_y..(tl_y + box_width) {
+            self.image_r[tl_x][y] = 255;
+            self.image_r[tl_x + box_width][y] = 255;
         }
 
-        for x in (tl_x+1)..(tl_x+box_width){
-            for y in (tl_y+1)..(tl_y+box_width){
-                self.image_g[x][y]=255;
+        for x in (tl_x + 1)..(tl_x + box_width) {
+            for y in (tl_y + 1)..(tl_y + box_width) {
+                self.image_g[x][y] = 255;
             }
         }
-
-
     }
 
-    fn set_line(&mut self, line: usize){
-     
-        if line&1==1{
+    fn set_line(&mut self, line: usize) {
+        if line & 1 == 1 {
             self.a.set_high();
-        }
-        else{
+        } else {
             self.a.set_low();
         }
-        if line&2==2{
+        if line & 2 == 2 {
             self.b.set_high();
-        }
-        else{
+        } else {
             self.b.set_low();
         }
-        if line&4==4{
+        if line & 4 == 4 {
             self.c.set_high();
-        }else{
+        } else {
             self.c.set_low();
         }
-        if line&8==8{
+        if line & 8 == 8 {
             self.d.set_high();
-        }else{
+        } else {
             self.d.set_low();
         }
-        if line&16==16{
+        if line & 16 == 16 {
             self.e.set_high();
-        }else{
+        } else {
             self.e.set_low();
         }
     }
-    fn shift(&mut self){
+    fn shift(&mut self) {
         self.clk.set_high();
         // self.delay.delay_us(1);
         self.clk.set_low();
     }
 
-    fn latch(&mut self){
+    fn latch(&mut self) {
         self.stb.set_high();
         self.stb.set_low();
     }
-    pub fn display_image(&mut self){
-
+    pub fn display_image(&mut self) {
         self.fill_frame();
 
-        
-
-        for l in 0..Matrix_ROWS/2{
+        for l in 0..Matrix_ROWS / 2 {
             self.set_line(l);
             self.oe.set_high();
-            
-            for c in 0..Matrix_COLS{
-                
-                let red=self.image_r[l][c];
-                let green=self.image_g[l][c];
-                let blue=self.image_b[l][c];
-                if red>0{
-                    self.r1.set_high();                  
-                }else{
-                    self.r1.set_low();                
-                }  
-                if green>0{
-                    self.g1.set_high();                 
-                }else{
-                    self.g1.set_low();                     
-                } 
-                if blue>0{
-                    self.b1.set_high();                  
-                }else{
-                    self.b1.set_low();                     
-                } 
+
+            for c in 0..Matrix_COLS {
+                let red = self.image_r[l][c];
+                let green = self.image_g[l][c];
+                let blue = self.image_b[l][c];
+                if red > 0 {
+                    self.r1.set_high();
+                } else {
+                    self.r1.set_low();
+                }
+                if green > 0 {
+                    self.g1.set_high();
+                } else {
+                    self.g1.set_low();
+                }
+                if blue > 0 {
+                    self.b1.set_high();
+                } else {
+                    self.b1.set_low();
+                }
                 self.shift();
-              
-                
             }
             self.latch();
             self.oe.set_low();
-            self.set_line(l+Matrix_ROWS/2);
+            self.set_line(l + Matrix_ROWS / 2);
             self.oe.set_high();
 
-            
-            for c in 0..Matrix_COLS{
-               
-                let red=self.image_r[l+Matrix_ROWS/2][c];
-                let green=self.image_g[l+Matrix_ROWS/2][c];
-                let blue=self.image_b[l+Matrix_ROWS/2][c];
-                if red>0{
-                    self.r2.set_high();                  
-                }else{
-                    self.r2.set_low();                     
-                }  
-                if green>0{
-                    self.g2.set_high();                  
-                }else{
-                    self.g2.set_low();                     
-                } 
-                if blue>0{
-                    self.b2.set_high();                  
-                }else{
-                    self.b2.set_low();                     
-                } 
+            for c in 0..Matrix_COLS {
+                let red = self.image_r[l + Matrix_ROWS / 2][c];
+                let green = self.image_g[l + Matrix_ROWS / 2][c];
+                let blue = self.image_b[l + Matrix_ROWS / 2][c];
+                if red > 0 {
+                    self.r2.set_high();
+                } else {
+                    self.r2.set_low();
+                }
+                if green > 0 {
+                    self.g2.set_high();
+                } else {
+                    self.g2.set_low();
+                }
+                if blue > 0 {
+                    self.b2.set_high();
+                } else {
+                    self.b2.set_low();
+                }
                 self.shift();
-               
-                
             }
             self.latch();
 
-
-
             self.oe.set_low();
-
         }
-
-
-
-        
-
-
-
-        
     }
 }
-
-
