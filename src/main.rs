@@ -1,17 +1,18 @@
 #![no_std]
 #![no_main]
+mod display_driver;
+mod linedriver;
+
 use core::u32;
 
+use cortex_m::asm::delay;
 use cortex_m::singleton;
 use embedded_hal::digital::OutputPin;
+use pio_proc::pio_file;
 use rp2040_hal::dma::{single_buffer, Channel, DMAExt};
-use rp_pico::hal::{
-    clocks::init_clocks_and_plls,
-    pac,
-    pio::{PIOExt},
-    sio::Sio,
-    watchdog::Watchdog,
-};
+use rp2040_hal::gpio::{FunctionPio0, Pin};
+use rp2040_hal::pio::PinDir;
+use rp_pico::hal::{clocks::init_clocks_and_plls, pac, pio::PIOExt, sio::Sio, watchdog::Watchdog};
 use rp_pico::Pins;
 // Ensure we halt the program on panic (if we don't mention this crate it won't
 // be linked)
@@ -51,86 +52,28 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
+    let linedriver=linedriver::LineDriver::new(pins.gpio10.into_function(),pins.gpio16.into_function(),pins.gpio18.into_function(),pins.gpio20.into_function(),pins.gpio22.into_function(), pins.gpio13.into_function());
+    let r1:Pin<_, FunctionPio0, _>=pins.gpio2.into_function();
+    let clk:Pin<_, FunctionPio0, _>=pins.gpio11.into_function();
+    let latch:Pin<_, FunctionPio0, _>=pins.gpio12.into_function();
+
     let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
 
-    let program = pio_proc::pio_asm!(
-        ".wrap_target",
-        "out pins, 6    [1]",  // Output RGB data for both rows
-        "set pins, 1    [1]",  // Set CLK high
-        "set pins, 0    [1]",  // Set CLK low
-        ".wrap"
-    );
+    // Import the PIO program
+    let program = pio_file!("src/hub75line.pio");
 
     let installed = pio.install(&program.program).unwrap();
-    let (mut sm, _,  tx) = rp2040_hal::pio::PIOBuilder::from_program(installed)
-        .out_pins(2, 6)
-        .set_pins(11, 1)
+    let (mut sm, _, mut tx) = rp2040_hal::pio::PIOBuilder::from_program(installed)
+        //.out_pins(2, 3) // R1,G1,B1 on pins 2,3,4
+        .set_pins(r1.id().num, 1) // CLK on pin 5
+        .side_set_pin_base(clk.id().num) // LATCH on pin 4
         .clock_divisor_fixed_point(1, 0)
         .build(sm0);
-
-    sm.set_pindirs([
-        (2, rp2040_hal::pio::PinDir::Output),
-        (3, rp2040_hal::pio::PinDir::Output),
-        (4, rp2040_hal::pio::PinDir::Output),
-        (5, rp2040_hal::pio::PinDir::Output),
-        (8, rp2040_hal::pio::PinDir::Output),
-        (9, rp2040_hal::pio::PinDir::Output),
-        (11, rp2040_hal::pio::PinDir::Output),
-    ]);
-
-    let dma = pac.DMA.split(&mut pac.RESETS);
-    let dma_chan = dma.ch0;
-
-    let mut framebuffer = [[0u32; WIDTH]; ROWS];
-
-    // Configure address pins
-    let mut a = pins.gpio10.into_push_pull_output();
-    let mut b = pins.gpio16.into_push_pull_output();
-    let mut c = pins.gpio18.into_push_pull_output();
-    let mut d = pins.gpio20.into_push_pull_output();
-    let mut e = pins.gpio22.into_push_pull_output();
-
-    // Configure control pins
-    let mut stb = pins.gpio12.into_push_pull_output();
-    let mut oe = pins.gpio13.into_push_pull_output();
-
+    sm.set_pindirs([(r1.id().num, PinDir::Output),(clk.id().num, PinDir::Output),(latch.id().num, PinDir::Output)]);
     
     sm.start();
-        let fr_singleton=singleton!(: [u32; WIDTH]=framebuffer[0]).unwrap();
-
-    let tx_dma=single_buffer::Config::new(dma_chan,fr_singleton, tx);
     loop {
-        for row in 0..ROWS {
-            // rprintln!("Row {}",row);
-            // Set row address
-            a.set_state((row & 1 != 0).into()).unwrap();
-            b.set_state(((row >> 1) & 1 != 0).into()).unwrap();
-            c.set_state(((row >> 2) & 1 != 0).into()).unwrap();
-            d.set_state(((row >> 3) & 1 != 0).into()).unwrap();
-            e.set_state(((row >> 4) & 1 != 0).into()).unwrap();
-
-            // Start DMA transfer
-            // let _ = dma_chan.write_buffer(&framebuffer[row], &mut tx);
-            
-           
-            // tx.write(u32::MAX);
-          
-
-            // Wait for DMA transfer to complete
-            // while dma_chan.is_busy() {}
-
-            // Latch data
-            stb.set_high().unwrap();
-            stb.set_low().unwrap();
-
-            // Enable output
-            oe.set_low().unwrap();
-
-            // Delay for PWM (adjust as needed)
-            cortex_m::asm::delay(1000);
-
-            // Disable output
-            oe.set_high().unwrap();
-        }
+        tx.write(u32::MAX);
+        delay(125000);
     }
 }

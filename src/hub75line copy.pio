@@ -1,0 +1,36 @@
+.program hub75line
+
+.define public T1 2       ; Number of cycles for DATA setup time
+.define public T2 2       ; Number of cycles for CLOCK high time
+.define public T3 2       ; Number of cycles for CLOCK low time
+.side_set 3   opt           ; Define that we use 3 bit for side-set
+
+.wrap_target
+    set y, 63            ; Set counter for 64 pixels
+    
+bitloop:
+    pull block           ; Pull 32 bits of data
+    out null, 1         ; Skip bit 0
+    out pins, 1         ; Output bit 1 to R1
+    out null, 7         ; Skip 7 bits
+    out pins, 1         ; Output bit 9 to G1
+    out null, 7         ; Skip 7 bits
+    out pins, 1         ; Output bit 17 to B1
+    out null, 14        ; Skip remaining bits
+    
+    nop [T1-1]          ; Wait for data setup time
+    nop side 1   ; Set CLK high
+    nop [T2-1]          ; CLK high time
+    nop side 0  ; Set CLK low
+    nop [T3-1]          ; CLK low time
+    
+    jmp y-- bitloop     ; Loop for all 64 pixels
+    
+    nop side 2  ; Set LATCH high
+    nop [T2-1]          ; LATCH high time
+    nop side 0  ; Set LATCH low
+
+    nop side 4  ; Set OE high
+    nop [T2-1]          ; OE high time
+    ;nop side 0  ; Set OE low
+.wrap
