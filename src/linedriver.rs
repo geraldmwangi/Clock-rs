@@ -1,8 +1,8 @@
 use embedded_hal::digital::OutputPin;
-use rp2040_hal::gpio::{
+use rp2040_hal::{gpio::{
     bank0::{Gpio10, Gpio12, Gpio13, Gpio16, Gpio18, Gpio20, Gpio22},
     FunctionSioOutput, Pin, PullDown,
-};
+}, pio::{PinDir, StateMachine, Stopped, PIO0SM0}};
 pub type A = Gpio10;
 pub(crate) type B = Gpio16;
 pub(crate) type C = Gpio18;
@@ -20,7 +20,7 @@ pub(crate) struct LineDriver {
 }
 
 impl LineDriver {
-    pub fn new(
+    pub fn new(sm: &mut StateMachine<PIO0SM0,Stopped>,
         a: Pin<A, FunctionSioOutput, PullDown>,
         b: Pin<B, FunctionSioOutput, PullDown>,
         c: Pin<C, FunctionSioOutput, PullDown>,
@@ -28,6 +28,7 @@ impl LineDriver {
         e: Pin<E, FunctionSioOutput, PullDown>,
         oe: Pin<OE, FunctionSioOutput, PullDown>,
     ) -> Self {
+        sm.set_pindirs([(a.id().num,PinDir::Output),(b.id().num,PinDir::Output),(c.id().num,PinDir::Output),(d.id().num,PinDir::Output),(e.id().num,PinDir::Output)]);
         Self { a, b, c, d, e, oe }
     }
     pub fn set_line(&mut self, line: usize) {
@@ -55,6 +56,14 @@ impl LineDriver {
             self.e.set_high();
         } else {
             self.e.set_low();
+        }
+    }
+
+    pub fn enable(&mut self, enable: bool) {
+        if enable {
+            self.oe.set_low();
+        } else {
+            self.oe.set_high();
         }
     }
 }

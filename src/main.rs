@@ -2,13 +2,16 @@
 #![no_main]
 mod display_driver;
 mod linedriver;
+pub mod volatile_access;
+//  mod volatile_access;
 
 use core::u32;
 
 use cortex_m::asm::delay;
 use cortex_m::singleton;
+use display_driver::DisplayDriver;
 use embedded_hal::digital::OutputPin;
-use pio_proc::pio_file;
+
 use rp2040_hal::dma::{single_buffer, Channel, DMAExt};
 use rp2040_hal::gpio::{FunctionPio0, Pin};
 use rp2040_hal::pio::PinDir;
@@ -32,7 +35,7 @@ fn main() -> ! {
     let mut pac = pac::Peripherals::take().unwrap();
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
     let sio = Sio::new(pac.SIO);
-
+    
     let clocks = init_clocks_and_plls(
         rp_pico::XOSC_CRYSTAL_FREQ,
         pac.XOSC,
@@ -45,6 +48,7 @@ fn main() -> ! {
     .ok()
     .unwrap();
 
+    
     let pins = Pins::new(
         pac.IO_BANK0,
         pac.PADS_BANK0,
@@ -52,39 +56,12 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
-    let linedriver = linedriver::LineDriver::new(
-        pins.gpio10.into_function(),
-        pins.gpio16.into_function(),
-        pins.gpio18.into_function(),
-        pins.gpio20.into_function(),
-        pins.gpio22.into_function(),
-        pins.gpio13.into_function(),
-    );
-    let r1: Pin<_, FunctionPio0, _> = pins.gpio2.into_function();
-    let clk: Pin<_, FunctionPio0, _> = pins.gpio11.into_function();
-    let latch: Pin<_, FunctionPio0, _> = pins.gpio12.into_function();
-
-    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
-
-    // Import the PIO program
-    let program = pio_file!("src/hub75line.pio");
-
-    let installed = pio.install(&program.program).unwrap();
-    let (mut sm, _, mut tx) = rp2040_hal::pio::PIOBuilder::from_program(installed)
-        //.out_pins(2, 3) // R1,G1,B1 on pins 2,3,4
-        .set_pins(r1.id().num, 1) // CLK on pin 5
-        .side_set_pin_base(clk.id().num) // LATCH on pin 4
-        .clock_divisor_fixed_point(1, 0)
-        .build(sm0);
-    sm.set_pindirs([
-        (r1.id().num, PinDir::Output),
-        (clk.id().num, PinDir::Output),
-        (latch.id().num, PinDir::Output),
-    ]);
-
-    sm.start();
+    let core=pac::CorePeripherals::take().unwrap();
+    let mut display=DisplayDriver::new(pins, core, clocks).unwrap();
+    
     loop {
-        tx.write(u32::MAX);
-        delay(125000);
+        display.fill_frame();
+        display.display_image();
+      
     }
 }

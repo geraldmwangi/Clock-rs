@@ -27,8 +27,8 @@ bitloop:
     nop [T2-1]          ; LATCH high time
     nop side 0  ; Set LATCH low
 
-    set x, 1
-    mov isr,x
+    mov isr,null
+    in x,32
     push block
     ;nop side 4  ; Set OE high
     ;nop [OE-1]          ; OE high time
