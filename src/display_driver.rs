@@ -150,32 +150,29 @@ impl DisplayDriver {
         Ok(driver)
     }
 
-    pub fn fill_frame(&mut self){
-        let c_y=Matrix_COLS/2;
-        let c_x=Matrix_ROWS/2;
-        let box_width=20;
-        
-        let tl_x=c_x-box_width/2;
-        let tl_y=c_y-box_width/2;
+    pub fn fill_frame(&mut self) {
+        let c_y = Matrix_COLS / 2;
+        let c_x = Matrix_ROWS / 2;
+        let box_width = 30;
 
-        for x in tl_x..(tl_x+box_width){
-            self.image_r[x][tl_y]=255;
-            self.image_r[x][tl_y+box_width]=255;
+        let tl_x = c_x - box_width / 2;
+        let tl_y = c_y - box_width / 2;
+
+        for x in tl_x..=tl_x + box_width {
+            self.image_b[x][tl_y] = 255;
+            self.image_b[x][tl_y + box_width] = 255;
         }
 
-
-        for y in tl_y..(tl_y+box_width){
-            self.image_r[tl_x][y]=255;
-            self.image_r[tl_x+box_width][y]=255;
+        for y in tl_y..=tl_y + box_width {
+            self.image_r[tl_x][y] = 255;
+            self.image_r[tl_x + box_width][y] = 255;
         }
 
-        for x in (tl_x+1)..(tl_x+box_width){
-            for y in (tl_y+1)..(tl_y+box_width){
-                self.image_g[x][y]=255;
+        for x in (tl_x + 1)..tl_x + box_width {
+            for y in (tl_y + 1)..tl_y + box_width {
+                self.image_g[x][y] = 255;
             }
         }
-
-
     }
 
     fn set_high(&self,pin: u8){
@@ -205,150 +202,71 @@ impl DisplayDriver {
             (*rp2040_pac::SIO::ptr()).gpio_out_clr().write(|w| w.bits(pin_mask));
         }
     }
-    fn set_line(&mut self, line: usize){
-        let mut high=0;
-        let mut low=0;
-        if line&1==1{
-            high=high|(1<<self.a);//self.set_high(self.a);
-        }
-        else{
-            low=low|(1<<self.a);
-        }
-        if line&2==2{
-            high=high|(1<<self.b);//self.set_high(self.a);
-        }
-        else{
-            low=low|(1<<self.b);
-        }
-        if line&4==4{
-            high=high|(1<<self.c);//self.set_high(self.a);
-        }
-        else{
-            low=low|(1<<self.c);
-        }
-        if line&8==8{
-            high=high|(1<<self.d);//self.set_high(self.a);
-        }
-        else{
-            low=low|(1<<self.d);
-        }
-        if line&16==16{
-            high=high|(1<<self.e);//self.set_high(self.a);
-        }
-        else{
-            low=low|(1<<self.e);
-        }
 
-        self.set_high_bits(high);
-        self.set_low_bits(low);
-    }
-    fn shift(&mut self){
-
-
-
-        self.set_high(self.clk);     
-        self.set_low(self.clk);
-        // self.clk.set_high();
-        // self.clk.set_low();
-
-       
-        // volatile_access::set_pin_high(11);
-        // volatile_access::set_pin_low(11);
+    fn set_pins(&self, high_mask: u32, low_mask: u32) {
+        unsafe {
+            (*rp2040_pac::SIO::ptr()).gpio_out_set().write(|w| w.bits(high_mask));
+            (*rp2040_pac::SIO::ptr()).gpio_out_clr().write(|w| w.bits(low_mask));
+        }
     }
 
-    fn latch(&mut self){
-        self.set_high(self.stb);
-        self.set_low(self.stb);
+    fn set_line(&mut self, line: usize) {
+        let mut high = 0;
+        let mut low = 0;
+        if line & 1 == 1 { high |= 1 << self.a; } else { low |= 1 << self.a; }
+        if line & 2 == 2 { high |= 1 << self.b; } else { low |= 1 << self.b; }
+        if line & 4 == 4 { high |= 1 << self.c; } else { low |= 1 << self.c; }
+        if line & 8 == 8 { high |= 1 << self.d; } else { low |= 1 << self.d; }
+        if line & 16 == 16 { high |= 1 << self.e; } else { low |= 1 << self.e; }
+
+        self.set_pins(high, low);
     }
-    pub fn display_image(&mut self){
 
-        // self.fill_frame();
+    fn shift(&mut self) {
+        self.set_pins(1 << self.clk, 1 << self.clk);
+    }
 
-        // self.oe.set_low();
+    fn latch(&mut self) {
+        self.set_pins(1 << self.stb, 1 << self.stb);
+    }
 
-        for l in 0..Matrix_ROWS/2{
+    pub fn display_image(&mut self) {
+        for l in 0..Matrix_ROWS / 2 {
             self.set_line(l);
-            // self.set_high(self.oe);
-            
-            for c in 0..Matrix_COLS{
-                
-                let red=self.image_r[l][c];
-                let green=self.image_g[l][c];
-                let blue=self.image_b[l][c];
-                let mut high=0;
-                let mut low=0;
-                if red>0{
-                    high=high|(1<<self.r1);
-                }else{
-                    low=low|(1<<self.r1);               
-                }  
-                if green>0{
-                    high=high|(1<<self.g1);
-                }else{
-                    low=low|(1<<self.g1);                      
-                } 
-                if blue>0{
-                    high=high|(1<<self.b1);
-                }else{
-                    low=low|(1<<self.b1);                      
-                }
-                self.set_high_bits(high);
-                self.set_low_bits(low); 
+
+            for c in 0..Matrix_COLS {
+                let red = self.image_r[l][c];
+                let green = self.image_g[l][c];
+                let blue = self.image_b[l][c];
+                let mut high = 0;
+                let mut low = 0;
+                if red > 0 { high |= 1 << self.r1; } else { low |= 1 << self.r1; }
+                if green > 0 { high |= 1 << self.g1; } else { low |= 1 << self.g1; }
+                if blue > 0 { high |= 1 << self.b1; } else { low |= 1 << self.b1; }
+                self.set_pins(high, low);
                 self.shift();
-              
-                
             }
             self.latch();
-            self.set_high(self.oe);
-            self.set_low(self.oe);
-            self.set_line(l+Matrix_ROWS/2);
-            self.set_high(self.oe);
-            self.set_low(self.oe);          
+            self.set_pins(1 << self.oe, 1 << self.oe);
 
-            
-            for c in 0..Matrix_COLS{
-               
-                let red=self.image_r[l+Matrix_ROWS/2][c];
-                let green=self.image_g[l+Matrix_ROWS/2][c];
-                let blue=self.image_b[l+Matrix_ROWS/2][c];
-                let mut high=0;
-                let mut low=0;
-                if red>0{
-                    high=high|(1<<self.r2);
-                }else{
-                    low=low|(1<<self.r2);               
-                }  
-                if green>0{
-                    high=high|(1<<self.g2);
-                }else{
-                    low=low|(1<<self.g2);                      
-                } 
-                if blue>0{
-                    high=high|(1<<self.b2);
-                }else{
-                    low=low|(1<<self.b2);                      
-                }
-                self.set_high_bits(high);
-                self.set_low_bits(low); 
+            self.set_line(l + Matrix_ROWS / 2);
+            self.set_pins(1 << self.oe, 1 << self.oe);
+
+            for c in 0..Matrix_COLS {
+                let red = self.image_r[l + Matrix_ROWS / 2][c];
+                let green = self.image_g[l + Matrix_ROWS / 2][c];
+                let blue = self.image_b[l + Matrix_ROWS / 2][c];
+                let mut high = 0;
+                let mut low = 0;
+                if red > 0 { high |= 1 << self.r2; } else { low |= 1 << self.r2; }
+                if green > 0 { high |= 1 << self.g2; } else { low |= 1 << self.g2; }
+                if blue > 0 { high |= 1 << self.b2; } else { low |= 1 << self.b2; }
+                self.set_pins(high, low);
                 self.shift();
-               
-                
             }
             self.latch();
-
-
-            self.set_high(self.oe);
-            self.set_low(self.oe);
-
+            self.set_pins(1 << self.oe, 1 << self.oe);
         }
-        // self.oe.set_high();
-    
-    
-      
-
-
-
-        
     }
 }
 
