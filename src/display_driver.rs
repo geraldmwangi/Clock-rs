@@ -1,6 +1,5 @@
 use core::{array, iter::Map};
 use cortex_m::asm::delay;
-use ds323x::{NaiveTime, Timelike};
 use rp_pico::hal::{clocks::ClocksManager, gpio::Error, pac};
 use embedded_hal::digital::{OutputPin, StatefulOutputPin};
 use rp_pico::{
@@ -18,7 +17,7 @@ use rp_pico::{
 };
 
 use rp_pico::hal::prelude::*;
-use crate::led_matrix::LedPattern;
+use crate::led_matrix::LedMatrix;
 
 const Matrix_COLS: usize=64;
 const Matrix_ROWS: usize=32;
@@ -81,6 +80,7 @@ type OE = Gpio13;
 
 
 pub struct DisplayDriver {
+    delay: cortex_m::delay::Delay,
     pub r1: u8,
     pub g1: u8,
     pub b1:u8,
@@ -103,7 +103,8 @@ pub struct DisplayDriver {
 }
 
 impl DisplayDriver {
-    pub fn new( ) -> Result<Self,Error> {
+    pub fn new(pins: Pins, core: pac::CorePeripherals,clocks: ClocksManager) -> Result<Self,Error> {
+        let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
         
         let mut driver=Self {
@@ -121,12 +122,26 @@ impl DisplayDriver {
             clk: 11,
             stb:12,
             oe:13,
+            delay,
             image_r: [[false;Matrix_COLS];Matrix_ROWS],
             image_g: [[false;Matrix_COLS];Matrix_ROWS],
             image_b: [[false;Matrix_COLS];Matrix_ROWS],
           
         };
-
+        pins.gpio2.into_push_pull_output();
+        pins.gpio3.into_push_pull_output();
+        pins.gpio4.into_push_pull_output();
+        pins.gpio5.into_push_pull_output();
+        pins.gpio8.into_push_pull_output();
+        pins.gpio9.into_push_pull_output();
+        pins.gpio10.into_push_pull_output();
+        pins.gpio16.into_push_pull_output();
+        pins.gpio18.into_push_pull_output();
+        pins.gpio20.into_push_pull_output();
+        pins.gpio22.into_push_pull_output();
+        pins.gpio11.into_push_pull_output();
+        pins.gpio12.into_push_pull_output();
+        pins.gpio13.into_push_pull_output();
 
 
 
@@ -134,27 +149,13 @@ impl DisplayDriver {
         Ok(driver)
     }
 
-    pub fn fill_frame(&mut self, time: NaiveTime) {
+    pub fn fill_frame(&mut self) {
         let c_y = 0;//Matrix_COLS / 2;
         let c_x = 1;//Matrix_ROWS / 2;
-        let width=4;
-        let sec=time.second();
-        let sec_pattern=LedPattern::from_bidigit_number(sec);
-        let min_pattern=LedPattern::from_bidigit_number(time.minute());
-        let hour_pattern=LedPattern::from_bidigit_number(time.hour());
-        let colon=LedPattern::colon();
 
-        self.display_pattern(hour_pattern.0, 0, c_y);
-        self.display_pattern(hour_pattern.1, width, c_y);
-        self.display_pattern(colon, 2*width, c_y);
-        self.display_pattern(min_pattern.0, 3*width, c_y);
-        self.display_pattern(min_pattern.1, 4*width, c_y); 
-        self.display_pattern(LedPattern::colon(), 5*width, c_y);   
-        self.display_pattern(sec_pattern.0, 6*width, c_y);
-        self.display_pattern(sec_pattern.1, 7*width, c_y);   
-        // self.display_pattern(sec1, 0, c_y);
-        // self.display_pattern(sec2, (1*4) as usize, c_y);
-
+        for i in 0..10{
+            self.display_digit(i, (i*4) as usize, c_y);
+        }
         
         // let box_width = 30;
 
@@ -286,19 +287,17 @@ impl DisplayDriver {
         }
     }
 
-    pub fn display_pattern(&mut self, pattern: LedPattern, x_offset: usize, y_offset: usize) {
-        
+    pub fn display_digit(&mut self, digit: u32, x_offset: usize, y_offset: usize) {
+        let matrix = LedMatrix::from_digit(digit);
 
-        for y in 0..pattern.height {
-            for x in 0..pattern.width {
+        for y in 0..matrix.height {
+            for x in 0..matrix.width {
                 if x + x_offset < Matrix_COLS && y + y_offset < Matrix_ROWS {
-                    self.image_r[y + y_offset][x + x_offset] = pattern.data[y][x];
+                    self.image_r[y + y_offset][x + x_offset] = matrix.data[y][x];
                 }
             }
         }
     }
-
-    
 }
 
 
