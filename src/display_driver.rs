@@ -1,5 +1,6 @@
 use core::{array, iter::Map};
 use cortex_m::asm::delay;
+use ds323x::{NaiveTime, Timelike};
 use rp_pico::hal::{clocks::ClocksManager, gpio::Error, pac};
 use embedded_hal::digital::{OutputPin, StatefulOutputPin};
 use rp_pico::{
@@ -17,8 +18,7 @@ use rp_pico::{
 };
 
 use rp_pico::hal::prelude::*;
-
-use crate::volatile_access;
+use crate::led_matrix::LedPattern;
 
 const Matrix_COLS: usize=64;
 const Matrix_ROWS: usize=32;
@@ -81,7 +81,6 @@ type OE = Gpio13;
 
 
 pub struct DisplayDriver {
-    delay: cortex_m::delay::Delay,
     pub r1: u8,
     pub g1: u8,
     pub b1:u8,
@@ -98,14 +97,13 @@ pub struct DisplayDriver {
     pub oe: u8,
    
 
-    image_r: [[u8;Matrix_COLS];Matrix_ROWS],
-    image_g: [[u8;Matrix_COLS];Matrix_ROWS],
-    image_b:[[u8;Matrix_COLS];Matrix_ROWS]
+    image_r: [[bool;Matrix_COLS];Matrix_ROWS],
+    image_g: [[bool;Matrix_COLS];Matrix_ROWS],
+    image_b:[[bool;Matrix_COLS];Matrix_ROWS]
 }
 
 impl DisplayDriver {
-    pub fn new(pins: Pins, core: pac::CorePeripherals,clocks: ClocksManager) -> Result<Self,Error> {
-        let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    pub fn new( ) -> Result<Self,Error> {
 
         
         let mut driver=Self {
@@ -123,26 +121,12 @@ impl DisplayDriver {
             clk: 11,
             stb:12,
             oe:13,
-            delay,
-            image_r: [[0;Matrix_COLS];Matrix_ROWS],
-            image_g: [[0;Matrix_COLS];Matrix_ROWS],
-            image_b: [[0;Matrix_COLS];Matrix_ROWS],
+            image_r: [[false;Matrix_COLS];Matrix_ROWS],
+            image_g: [[false;Matrix_COLS];Matrix_ROWS],
+            image_b: [[false;Matrix_COLS];Matrix_ROWS],
           
         };
-        pins.gpio2.into_push_pull_output();
-        pins.gpio3.into_push_pull_output();
-        pins.gpio4.into_push_pull_output();
-        pins.gpio5.into_push_pull_output();
-        pins.gpio8.into_push_pull_output();
-        pins.gpio9.into_push_pull_output();
-        pins.gpio10.into_push_pull_output();
-        pins.gpio16.into_push_pull_output();
-        pins.gpio18.into_push_pull_output();
-        pins.gpio20.into_push_pull_output();
-        pins.gpio22.into_push_pull_output();
-        pins.gpio11.into_push_pull_output();
-        pins.gpio12.into_push_pull_output();
-        pins.gpio13.into_push_pull_output();
+
 
 
 
@@ -150,29 +134,48 @@ impl DisplayDriver {
         Ok(driver)
     }
 
-    pub fn fill_frame(&mut self) {
-        let c_y = Matrix_COLS / 2;
-        let c_x = Matrix_ROWS / 2;
-        let box_width = 30;
+    pub fn fill_frame(&mut self, time: NaiveTime) {
+        let c_y = 0;//Matrix_COLS / 2;
+        let c_x = 1;//Matrix_ROWS / 2;
+        let width=4;
+        let sec=time.second();
+        let sec_pattern=LedPattern::from_bidigit_number(sec);
+        let min_pattern=LedPattern::from_bidigit_number(time.minute());
+        let hour_pattern=LedPattern::from_bidigit_number(time.hour());
+        let colon=LedPattern::colon();
 
-        let tl_x = c_x - box_width / 2;
-        let tl_y = c_y - box_width / 2;
+        self.display_pattern(hour_pattern.0, 0, c_y);
+        self.display_pattern(hour_pattern.1, width, c_y);
+        self.display_pattern(colon, 2*width, c_y);
+        self.display_pattern(min_pattern.0, 3*width, c_y);
+        self.display_pattern(min_pattern.1, 4*width, c_y); 
+        self.display_pattern(LedPattern::colon(), 5*width, c_y);   
+        self.display_pattern(sec_pattern.0, 6*width, c_y);
+        self.display_pattern(sec_pattern.1, 7*width, c_y);   
+        // self.display_pattern(sec1, 0, c_y);
+        // self.display_pattern(sec2, (1*4) as usize, c_y);
 
-        for x in tl_x..=tl_x + box_width {
-            self.image_b[x][tl_y] = 255;
-            self.image_b[x][tl_y + box_width] = 255;
-        }
+        
+        // let box_width = 30;
 
-        for y in tl_y..=tl_y + box_width {
-            self.image_r[tl_x][y] = 255;
-            self.image_r[tl_x + box_width][y] = 255;
-        }
+        // let tl_x = c_x - box_width / 2;
+        // let tl_y = c_y - box_width / 2;
 
-        for x in (tl_x + 1)..tl_x + box_width {
-            for y in (tl_y + 1)..tl_y + box_width {
-                self.image_g[x][y] = 255;
-            }
-        }
+        // for x in tl_x..=tl_x + box_width {
+        //     self.image_b[x][tl_y] = true;
+        //     self.image_b[x][tl_y + box_width] = true;
+        // }
+
+        // for y in tl_y..=tl_y + box_width {
+        //     self.image_r[tl_x][y] = true;
+        //     self.image_r[tl_x + box_width][y] = true;
+        // }
+
+        // for x in (tl_x + 1)..tl_x + box_width {
+        //     for y in (tl_y + 1)..tl_y + box_width {
+        //         self.image_g[x][y] = true;
+        //     }
+        // }
     }
 
     fn set_high(&self,pin: u8){
@@ -211,15 +214,15 @@ impl DisplayDriver {
     }
 
     fn set_line(&mut self, line: usize) {
-        let mut high = 0;
-        let mut low = 0;
-        if line & 1 == 1 { high |= 1 << self.a; } else { low |= 1 << self.a; }
-        if line & 2 == 2 { high |= 1 << self.b; } else { low |= 1 << self.b; }
-        if line & 4 == 4 { high |= 1 << self.c; } else { low |= 1 << self.c; }
-        if line & 8 == 8 { high |= 1 << self.d; } else { low |= 1 << self.d; }
-        if line & 16 == 16 { high |= 1 << self.e; } else { low |= 1 << self.e; }
+        let mut row_high = 0;
+        let mut row_low = 0;
+        if line & 1 == 1 { row_high |= 1 << self.a; } else { row_low |= 1 << self.a; }
+        if line & 2 == 2 { row_high |= 1 << self.b; } else { row_low |= 1 << self.b; }
+        if line & 4 == 4 { row_high |= 1 << self.c; } else { row_low |= 1 << self.c; }
+        if line & 8 == 8 { row_high |= 1 << self.d; } else { row_low |= 1 << self.d; }
+        if line & 16 == 16 { row_high |= 1 << self.e; } else { row_low |= 1 << self.e; }
 
-        self.set_pins(high, low);
+        self.set_pins(row_high, row_low);
     }
 
     fn shift(&mut self) {
@@ -240,17 +243,23 @@ impl DisplayDriver {
                 let blue = self.image_b[l][c];
                 let mut high = 0;
                 let mut low = 0;
-                if red > 0 { high |= 1 << self.r1; } else { low |= 1 << self.r1; }
-                if green > 0 { high |= 1 << self.g1; } else { low |= 1 << self.g1; }
-                if blue > 0 { high |= 1 << self.b1; } else { low |= 1 << self.b1; }
+                high |= (red as u32) << self.r1; //if red > 0 { high |= 1 << self.r1; } else { low |= 1 << self.r1; }
+                low|= (!red as u32) << self.r1;
+                high |= (green as u32) << self.g1;//if green > 0 { high |= 1 << self.g1; } else { low |= 1 << self.g1; }
+                low|= (!green as u32) <<self.g1;
+                high |= (blue as u32) << self.b1;//if blue > 0 { high |= 1 << self.b1; } else { low |= 1 << self.b1; }
+                low|= (!blue as u32) << self.b1;
+                //high |= 1 << self.b1;//if blue > 0 { high |= 1 << self.b1; } else { low |= 1 << self.b1; }
                 self.set_pins(high, low);
-                self.shift();
+                // self.shift();
+                self.set_pins(1 << self.clk, 1 << self.clk);
             }
-            self.latch();
+            // self.latch();
+            self.set_pins(1 << self.stb, 1 << self.stb);
             self.set_pins(1 << self.oe, 1 << self.oe);
 
             self.set_line(l + Matrix_ROWS / 2);
-            self.set_pins(1 << self.oe, 1 << self.oe);
+            // self.set_pins(1 << self.oe, 1 << self.oe);
 
             for c in 0..Matrix_COLS {
                 let red = self.image_r[l + Matrix_ROWS / 2][c];
@@ -258,16 +267,38 @@ impl DisplayDriver {
                 let blue = self.image_b[l + Matrix_ROWS / 2][c];
                 let mut high = 0;
                 let mut low = 0;
-                if red > 0 { high |= 1 << self.r2; } else { low |= 1 << self.r2; }
-                if green > 0 { high |= 1 << self.g2; } else { low |= 1 << self.g2; }
-                if blue > 0 { high |= 1 << self.b2; } else { low |= 1 << self.b2; }
+                // if red > 0 { high |= 1 << self.r2; } else { low |= 1 << self.r2; }
+                // if green > 0 { high |= 1 << self.g2; } else { low |= 1 << self.g2; }
+                // if blue > 0 { high |= 1 << self.b2; } else { low |= 1 << self.b2; }
+                high |= (red as u32) << self.r2; //if red > 0 { high |= 1 << self.r1; } else { low |= 1 << self.r1; }
+                low|= (!red as u32) << self.r2;
+                high |= (green as u32) << self.g2;//if green > 0 { high |= 1 << self.g1; } else { low |= 1 << self.g1; }
+                low|= (!green as u32) <<self.g2;
+                high |= (blue as u32) << self.b2;//if blue > 0 { high |= 1 << self.b1; } else { low |= 1 << self.b1; }
+                low|= (!blue as u32) << self.b2;
                 self.set_pins(high, low);
-                self.shift();
+                // self.shift();
+                self.set_pins(1 << self.clk, 1 << self.clk);
             }
-            self.latch();
+            // self.latch();
+            self.set_pins(1 << self.stb, 1 << self.stb);
             self.set_pins(1 << self.oe, 1 << self.oe);
         }
     }
+
+    pub fn display_pattern(&mut self, pattern: LedPattern, x_offset: usize, y_offset: usize) {
+        
+
+        for y in 0..pattern.height {
+            for x in 0..pattern.width {
+                if x + x_offset < Matrix_COLS && y + y_offset < Matrix_ROWS {
+                    self.image_r[y + y_offset][x + x_offset] = pattern.data[y][x];
+                }
+            }
+        }
+    }
+
+    
 }
 
 

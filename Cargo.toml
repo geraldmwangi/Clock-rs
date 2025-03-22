@@ -9,6 +9,7 @@ edition = "2021"
 cortex-m = {version = "0.7.7"}
 cortex-m-rt = "0.7.5"
 embedded-hal = "1.0.0"
+ds323x = "*"
 heapless = "0.8.0"
 # hub75 = "0.1.1"
 panic-halt = "1.0.0"
