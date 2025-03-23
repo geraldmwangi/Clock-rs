@@ -13,6 +13,9 @@
 # Set the default target to match the Cortex-M0+ in the RP2040
 target = "thumbv6m-none-eabi"
 
+[env]
+DEFMT_LOG = "debug"
+
 # Target specific options
 [target.thumbv6m-none-eabi]
 # Pass some extra options to rustc, some of which get passed on to the linker.
@@ -28,6 +31,7 @@ target = "thumbv6m-none-eabi"
 rustflags = [
     "-C", "link-arg=--nmagic",
     "-C", "link-arg=-Tlink.x",
+    "-C", "link-arg=-Tlink-rp.x",
     "-C", "no-vectorize-loops",
       # --- ADD following new flag ---
      "-C", "link-arg=-Tdefmt.x",

@@ -9,7 +9,7 @@ edition = "2021"
 cortex-m = {version = "0.7.7"}
 cortex-m-rt = "0.7.5"
 # embedded-hal = "1.0.0"
-# ds323x = "*"
+ds323x = "0.6.0"
 # heapless = "0.8.0"
 # # hub75 = "0.1.1"
 panic-halt = "1.0.0"
@@ -30,6 +30,6 @@ critical-section = "1.2.0"
 embassy-rp ={version =  "0.4.0",features = ["rp2040","critical-section-impl","defmt","time-driver"]}
 embassy-embedded-hal = {version = "0.3.0",features = ["defmt"]}
 # embassy-executor = { version = "0.7.0", features = ["task-arena-size-98304", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"] }
-embassy-executor = { version = "0.7.0",features = [ "arch-cortex-m", "executor-thread"]}
+embassy-executor = { version = "0.7.0",features = ["defmt", "arch-cortex-m", "executor-thread"]}
 embassy-time = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime"] }
 
