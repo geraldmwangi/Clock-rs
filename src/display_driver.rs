@@ -1,8 +1,9 @@
 use core::{array, iter::Map};
-use cortex_m::asm::delay;
+
+use cortex_m::delay;
 use ds323x::{NaiveTime, Timelike};
 use rp_pico::hal::{clocks::ClocksManager, gpio::Error, pac};
-use embedded_hal::digital::{OutputPin, StatefulOutputPin};
+use embedded_hal::{digital::{OutputPin, StatefulOutputPin}};
 use rp_pico::{
     hal::{
         gpio::{
@@ -95,6 +96,7 @@ pub struct DisplayDriver {
     pub clk: u8,
     pub stb:u8,
     pub oe: u8,
+    delay: cortex_m::delay::Delay,
    
 
     image_r: [[bool;Matrix_COLS];Matrix_ROWS],
@@ -103,7 +105,7 @@ pub struct DisplayDriver {
 }
 
 impl DisplayDriver {
-    pub fn new( ) -> Result<Self,Error> {
+    pub fn new(delay: cortex_m::delay::Delay ) -> Result<Self,Error> {
 
         
         let mut driver=Self {
@@ -124,6 +126,7 @@ impl DisplayDriver {
             image_r: [[false;Matrix_COLS];Matrix_ROWS],
             image_g: [[false;Matrix_COLS];Matrix_ROWS],
             image_b: [[false;Matrix_COLS];Matrix_ROWS],
+            delay,
           
         };
 
@@ -226,11 +229,21 @@ impl DisplayDriver {
     }
 
     fn shift(&mut self) {
-        self.set_pins(1 << self.clk, 1 << self.clk);
+        self.set_high(self.clk);
+        self.delay.delay_us(1);
+        self.set_low(self.clk);
     }
 
     fn latch(&mut self) {
-        self.set_pins(1 << self.stb, 1 << self.stb);
+        self.set_high(self.stb);
+        self.delay.delay_us(1);
+        self.set_low(self.stb);
+    }
+    fn output_enable(&mut self){
+        self.set_low(self.oe);
+        self.delay.delay_us(500);
+        self.set_high(self.oe);
+      
     }
 
     pub fn display_image(&mut self) {
@@ -251,12 +264,13 @@ impl DisplayDriver {
                 low|= (!blue as u32) << self.b1;
                 //high |= 1 << self.b1;//if blue > 0 { high |= 1 << self.b1; } else { low |= 1 << self.b1; }
                 self.set_pins(high, low);
-                // self.shift();
-                self.set_pins(1 << self.clk, 1 << self.clk);
+                 self.shift();
+                //self.set_pins(1 << self.clk, 1 << self.clk);
             }
-            // self.latch();
-            self.set_pins(1 << self.stb, 1 << self.stb);
-            self.set_pins(1 << self.oe, 1 << self.oe);
+            self.latch();
+            //self.set_pins(1 << self.stb, 1 << self.stb);
+             self.output_enable();
+            //self.set_pins(1 << self.oe, 1 << self.oe);
 
             self.set_line(l + Matrix_ROWS / 2);
             // self.set_pins(1 << self.oe, 1 << self.oe);
@@ -277,12 +291,13 @@ impl DisplayDriver {
                 high |= (blue as u32) << self.b2;//if blue > 0 { high |= 1 << self.b1; } else { low |= 1 << self.b1; }
                 low|= (!blue as u32) << self.b2;
                 self.set_pins(high, low);
-                // self.shift();
-                self.set_pins(1 << self.clk, 1 << self.clk);
+                 self.shift();
+                //self.set_pins(1 << self.clk, 1 << self.clk);
             }
-            // self.latch();
-            self.set_pins(1 << self.stb, 1 << self.stb);
-            self.set_pins(1 << self.oe, 1 << self.oe);
+            self.latch();
+            //self.set_pins(1 << self.stb, 1 << self.stb);
+            self.output_enable();
+            //self.set_pins(1 << self.oe, 1 << self.oe);
         }
     }
 

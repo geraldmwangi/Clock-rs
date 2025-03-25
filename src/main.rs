@@ -82,7 +82,7 @@ fn main() -> ! {
     pins.gpio13.into_push_pull_output();
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
-     let mut display=DisplayDriver::new( ).unwrap();
+     let mut display=DisplayDriver::new( delay).unwrap();
 
     let sda_pin = pins.gpio6.reconfigure();
     let scl_pin = pins.gpio7.reconfigure();
@@ -120,7 +120,6 @@ fn main() -> ! {
             },
             Err(e) => rprintln!("error: {:#?}",e),
         }
-        // delay.delay_ms(10);
         
 
       
