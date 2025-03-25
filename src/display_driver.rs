@@ -249,7 +249,7 @@ impl DisplayDriver {
 
     pub fn display_image(&mut self) {
         for l in 0..Matrix_ROWS / 2 {
-           
+           //from https://benjemmett.com/archives/114
             //Shift out the data
             for c in 0..Matrix_COLS {
                 let red = self.image_r[l][c];
