@@ -138,8 +138,8 @@ impl DisplayDriver {
     }
 
     pub fn fill_frame(&mut self, time: NaiveTime) {
-        let c_y = 0;//Matrix_COLS / 2;
-        let c_x = 1;//Matrix_ROWS / 2;
+        let c_y = Matrix_COLS / 2;
+        let c_x = Matrix_ROWS / 2;
         let width=4;
         let sec=time.second();
         let sec_pattern=LedPattern::from_bidigit_number(sec);
@@ -147,16 +147,15 @@ impl DisplayDriver {
         let hour_pattern=LedPattern::from_bidigit_number(time.hour());
         let colon=LedPattern::colon();
 
-        self.display_pattern(hour_pattern.0, 0, c_y);
-        self.display_pattern(hour_pattern.1, width, c_y);
-        self.display_pattern(colon, 2*width, c_y);
-        self.display_pattern(min_pattern.0, 3*width, c_y);
-        self.display_pattern(min_pattern.1, 4*width, c_y); 
-        self.display_pattern(LedPattern::colon(), 5*width, c_y);   
-        self.display_pattern(sec_pattern.0, 6*width, c_y);
-        self.display_pattern(sec_pattern.1, 7*width, c_y);   
-        // self.display_pattern(sec1, 0, c_y);
-        // self.display_pattern(sec2, (1*4) as usize, c_y);
+        self.display_pattern(hour_pattern.0, 0, 0);
+        self.display_pattern(hour_pattern.1, width, 0);
+        self.display_pattern(colon, 2*width, 0);
+        self.display_pattern(min_pattern.0, 3*width, 0);
+        self.display_pattern(min_pattern.1, 4*width, 0); 
+        self.display_pattern(LedPattern::colon(), 5*width, 0);   
+        self.display_pattern(sec_pattern.0, 6*width, 0);
+        self.display_pattern(sec_pattern.1, 7*width, 0);   
+  
 
         
         // let box_width = 30;
@@ -237,19 +236,21 @@ impl DisplayDriver {
     fn latch(&mut self) {
         self.set_high(self.stb);
         self.delay.delay_us(1);
+        
         self.set_low(self.stb);
     }
     fn output_enable(&mut self){
+        
+        
         self.set_low(self.oe);
-        self.delay.delay_us(500);
-        self.set_high(self.oe);
+        // self.delay.delay_us(1000);
       
     }
 
     pub fn display_image(&mut self) {
         for l in 0..Matrix_ROWS / 2 {
-            self.set_line(l);
-
+           
+            //Shift out the data
             for c in 0..Matrix_COLS {
                 let red = self.image_r[l][c];
                 let green = self.image_g[l][c];
@@ -267,14 +268,25 @@ impl DisplayDriver {
                  self.shift();
                 //self.set_pins(1 << self.clk, 1 << self.clk);
             }
+
+            //Disable the display by setting OR to High
+            self.set_high(self.oe);
+
+            //Set the row adress
+            self.set_line(l);
+
+            //latch the row
             self.latch();
             //self.set_pins(1 << self.stb, 1 << self.stb);
+
+            //Enable the output and wait
              self.output_enable();
             //self.set_pins(1 << self.oe, 1 << self.oe);
 
-            self.set_line(l + Matrix_ROWS / 2);
+            
             // self.set_pins(1 << self.oe, 1 << self.oe);
 
+             //Shift out the data
             for c in 0..Matrix_COLS {
                 let red = self.image_r[l + Matrix_ROWS / 2][c];
                 let green = self.image_g[l + Matrix_ROWS / 2][c];
@@ -294,8 +306,17 @@ impl DisplayDriver {
                  self.shift();
                 //self.set_pins(1 << self.clk, 1 << self.clk);
             }
+             //Disable the display by setting OR to High
+            self.set_high(self.oe);
+
+            //Set the row adress
+            self.set_line(l + Matrix_ROWS / 2);
+
+            //latch the row
             self.latch();
             //self.set_pins(1 << self.stb, 1 << self.stb);
+
+            //Enable the output and wait
             self.output_enable();
             //self.set_pins(1 << self.oe, 1 << self.oe);
         }
