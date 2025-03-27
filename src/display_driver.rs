@@ -19,7 +19,7 @@ use rp_pico::{
 };
 
 use rp_pico::hal::prelude::*;
-use crate::led_matrix::LedPattern;
+use crate::{flower::FlowerPattern, led_matrix::LedPattern};
 
 const Matrix_COLS: usize=64;
 const Matrix_ROWS: usize=32;
@@ -147,15 +147,15 @@ impl DisplayDriver {
         let hour_pattern=LedPattern::from_bidigit_number(time.hour());
         let colon=LedPattern::colon();
 
-        self.display_pattern(hour_pattern.0, 0, 0);
-        self.display_pattern(hour_pattern.1, width, 0);
-        self.display_pattern(colon, 2*width, 0);
-        self.display_pattern(min_pattern.0, 3*width, 0);
-        self.display_pattern(min_pattern.1, 4*width, 0); 
-        self.display_pattern(LedPattern::colon(), 5*width, 0);   
-        self.display_pattern(sec_pattern.0, 6*width, 0);
-        self.display_pattern(sec_pattern.1, 7*width, 0);   
-  
+        // self.display_pattern(hour_pattern.0, 0, 0);
+        // self.display_pattern(hour_pattern.1, width, 0);
+        // self.display_pattern(colon, 2*width, 0);
+        // self.display_pattern(min_pattern.0, 3*width, 0);
+        // self.display_pattern(min_pattern.1, 4*width, 0); 
+        // self.display_pattern(LedPattern::colon(), 5*width, 0);   
+        // self.display_pattern(sec_pattern.0, 6*width, 0);
+        // self.display_pattern(sec_pattern.1, 7*width, 0);   
+        self.display_flower(FlowerPattern::new());
 
         
         // let box_width = 30;
@@ -322,6 +322,16 @@ impl DisplayDriver {
         }
     }
 
+    pub fn display_flower(&mut self, pattern: FlowerPattern){
+        for y in 0..pattern.height {
+            for x in 0..pattern.width {
+                if x < Matrix_COLS && y  < Matrix_ROWS {
+                    self.image_r[y ][x ] = pattern.head[y][x];
+                    self.image_g[y ][x ] = pattern.stem[y][x];
+                }
+            }
+        }   
+    }
     pub fn display_pattern(&mut self, pattern: LedPattern, x_offset: usize, y_offset: usize) {
         
 

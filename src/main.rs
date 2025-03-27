@@ -4,6 +4,7 @@ mod display_driver;
 mod linedriver;
 pub mod volatile_access;
 pub mod led_matrix;
+mod flower;
 //  mod volatile_access;
 
 use core::u32;
