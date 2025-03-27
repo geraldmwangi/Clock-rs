@@ -1,4 +1,43 @@
 // Pattern of a rose. For my wife on our wedding aniversary
+
+// used this pattern generator
+// use image::io::Reader;
+
+// fn main() {
+//     // Images need to be biary. Gimp: Image>Mode>Indexed and tick the "Use black and white (1-bit) palette". Then export as BMP.
+//    let img=Reader::open("patterns/flower-stem.bmp").unwrap().decode().unwrap();
+//    let gray=img.into_luma8();
+//    println!("Image dimensions {}x{}",gray.width(),gray.height());
+//    let dims:(usize,usize)=(gray.height()as usize,gray.width() as usize);
+//    let raw=gray.into_raw();
+
+//    let mut code="let pattern=[".to_owned();
+//    code=format!("{}\n",code);
+//    for y in 0..dims.0{
+//         let mut row=String::new();
+//         let mut coderow="[".to_owned();
+//         for x in 0..dims.1{
+//             let value=raw[x+y*dims.1];
+//             if value==0{
+//                 row=row+".";
+//                 coderow=coderow+"true,";
+//             }
+//             else{
+//                 row=row+" ";
+//                 coderow=coderow+"false,";
+//             }
+//         }
+//         coderow=coderow+"],";
+//         code=code+&coderow;
+//         code=format!("{}\n",code);
+//         // println!("{}",row); 
+
+//    }
+//    code=code+"];";
+//    println!("{}",code);
+// }
+
+
 pub struct FlowerPattern {
     pub width: usize,
     pub height: usize,
